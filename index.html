@@ -337,6 +337,7 @@
     <div class="controls">
       <button class="primary" id="check-btn">Check</button>
       <button id="reveal-btn">Reveal</button>
+      <button id="share-btn" style="display:none; background:#1a1a1b; color:#fff;">Share</button>
       <button id="how-btn">How to play</button>
     </div>
   </main>
@@ -376,7 +377,8 @@
       <h2>Nice work!</h2>
       <p id="success-msg">You solved today’s ladder.</p>
       <p style="text-align:center;font-size:0.9rem;color:#666" id="success-path"></p>
-      <button class="close-btn" id="close-success">Continue</button>
+      <button class="close-btn" id="share-from-modal" style="background:#1a1a1b; margin-bottom:10px;">Share result</button>
+      <button class="close-btn" id="close-success" style="background:var(--correct);">Continue</button>
     </div>
   </div>
 
@@ -600,6 +602,8 @@
         statusEl.textContent = "Solved!";
         statusEl.className = "status success";
         checkBtn.disabled = true;
+        revealBtn.disabled = true;
+        document.getElementById("share-btn").style.display = "inline-block";
         // mark all intermediate rows correct
         document.querySelectorAll(".row[data-row]").forEach(r => r.classList.add("row-correct"));
         document.getElementById("success-msg").textContent = `You climbed the ladder in ${intermediates + 1} steps.`;
@@ -630,11 +634,50 @@
       statusEl.className = "status info";
       checkBtn.disabled = true;
       revealBtn.disabled = true;
+      // Still allow sharing after reveal (but mark it as revealed if you want)
+      document.getElementById("share-btn").style.display = "inline-block";
+    }
+
+    function getShareText() {
+      const idx = getDayIndex() + 1;
+      const steps = currentPuzzle.length - 1;
+      // One green row per word in the ladder (Wordle-style visual)
+      const greens = Array(currentPuzzle.length).fill("🟩🟩🟩🟩🟩").join("\n");
+      // Use the current page URL if we're on GitHub Pages, otherwise a placeholder
+      const url = (location.hostname.includes("github.io") || location.hostname !== "localhost")
+        ? location.origin + location.pathname.replace(/\/$/, "")
+        : "https://YOUR-USERNAME.github.io/word-ladder";
+      return `Word Ladder #${idx}\n${greens}\n\nSolved in ${steps} steps\n${url}`;
+    }
+
+    async function shareResult() {
+      const text = getShareText();
+      try {
+        await navigator.clipboard.writeText(text);
+        // Temporary feedback
+        const original = statusEl.textContent;
+        statusEl.textContent = "Result copied to clipboard!";
+        statusEl.className = "status success";
+        setTimeout(() => {
+          if (solved) {
+            statusEl.textContent = "Solved!";
+            statusEl.className = "status success";
+          }
+        }, 2000);
+      } catch (err) {
+        // Fallback for older browsers
+        prompt("Copy this result:", text);
+      }
     }
 
     // Event listeners
     checkBtn.addEventListener("click", checkSolution);
     revealBtn.addEventListener("click", revealSolution);
+    document.getElementById("share-btn").addEventListener("click", shareResult);
+    document.getElementById("share-from-modal").addEventListener("click", () => {
+      shareResult();
+      // keep modal open so they can still close it
+    });
     howBtn.addEventListener("click", () => document.getElementById("how-modal").classList.add("open"));
     document.getElementById("close-how").addEventListener("click", () => document.getElementById("how-modal").classList.remove("open"));
     document.getElementById("close-success").addEventListener("click", () => document.getElementById("success-modal").classList.remove("open"));

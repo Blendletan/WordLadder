@@ -13,6 +13,8 @@ A clean, Wordle-inspired daily **word ladder** game.
 
 Open `index.html` in a browser, or host the folder on GitHub Pages.
 
+After solving you get a **Share** button that copies a Wordle-style result (green squares + puzzle number) to your clipboard — perfect for posting on X, Discord, etc.
+
 ## Technical notes
 
 - Pure static site (HTML + CSS + JS). No backend.
