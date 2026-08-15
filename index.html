@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Word Ladder — Daily</title>
+  <meta name="description" content="A daily word ladder puzzle. Change one letter at a time to turn the start word into the end word." />
+  <style>
+    :root {
+      --bg: #f6f7f8;
+      --text: #1a1a1b;
+      --muted: #787c7e;
+      --border: #d3d6da;
+      --tile-bg: #ffffff;
+      --correct: #6aaa64;
+      --present: #c9b458;
+      --absent: #787c7e;
+      --key-bg: #d3d6da;
+      --error: #c94c4c;
+      --success-bg: #e8f5e9;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Clear Sans", "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    header {
+      width: 100%;
+      max-width: 500px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #fff;
+    }
+
+    header h1 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .puzzle-num {
+      font-size: 0.85rem;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    main {
+      width: 100%;
+      max-width: 420px;
+      padding: 20px 12px 40px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .instructions {
+      text-align: center;
+      font-size: 0.95rem;
+      color: var(--muted);
+      line-height: 1.45;
+      max-width: 340px;
+    }
+
+    .instructions strong {
+      color: var(--text);
+    }
+
+    .board {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      width: 100%;
+      max-width: 320px;
+    }
+
+    .row {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+    }
+
+    .tile {
+      width: 52px;
+      height: 52px;
+      border: 2px solid var(--border);
+      background: var(--tile-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      user-select: none;
+      transition: border-color 0.15s, background 0.15s, color 0.15s;
+    }
+
+    .tile.locked {
+      background: #edeff1;
+      border-color: #c4c7cb;
+      color: var(--text);
+    }
+
+    .tile.correct {
+      background: var(--correct);
+      border-color: var(--correct);
+      color: #fff;
+    }
+
+    .tile.error {
+      border-color: var(--error);
+      animation: shake 0.35s ease;
+    }
+
+    .tile.changed {
+      /* subtle highlight on the letter that differs from previous */
+      box-shadow: inset 0 -3px 0 var(--present);
+    }
+
+    .row input.tile-input {
+      width: 52px;
+      height: 52px;
+      border: 2px solid var(--border);
+      background: var(--tile-bg);
+      text-align: center;
+      font-size: 1.6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      outline: none;
+      caret-color: var(--text);
+      padding: 0;
+      border-radius: 0;
+    }
+
+    .row input.tile-input:focus {
+      border-color: #878a8c;
+      box-shadow: 0 0 0 1px #878a8c;
+    }
+
+    .row input.tile-input.filled {
+      border-color: #878a8c;
+    }
+
+    .row.row-correct input.tile-input {
+      background: var(--correct);
+      border-color: var(--correct);
+      color: #fff;
+    }
+
+    .row.row-error input.tile-input {
+      border-color: var(--error);
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-4px); }
+      40%, 80% { transform: translateX(4px); }
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 8px;
+    }
+
+    button {
+      font-family: inherit;
+      font-size: 0.95rem;
+      font-weight: 600;
+      padding: 10px 18px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      background: var(--key-bg);
+      color: var(--text);
+      transition: background 0.15s, opacity 0.15s;
+    }
+
+    button:hover {
+      background: #c0c3c6;
+    }
+
+    button.primary {
+      background: var(--correct);
+      color: #fff;
+    }
+
+    button.primary:hover {
+      background: #5a9a55;
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .status {
+      min-height: 28px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .status.success {
+      color: var(--correct);
+    }
+
+    .status.error {
+      color: var(--error);
+    }
+
+    .status.info {
+      color: var(--muted);
+    }
+
+    footer {
+      width: 100%;
+      max-width: 500px;
+      padding: 12px 16px 20px;
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      background: #fff;
+    }
+
+    footer a {
+      color: var(--muted);
+      text-decoration: underline;
+    }
+
+    /* Modal for success / how to play */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 16px;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal {
+      background: #fff;
+      border-radius: 8px;
+      max-width: 360px;
+      width: 100%;
+      padding: 24px 20px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+    }
+
+    .modal h2 {
+      font-size: 1.25rem;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    .modal p {
+      font-size: 0.95rem;
+      line-height: 1.5;
+      color: #333;
+      margin-bottom: 10px;
+    }
+
+    .modal .close-btn {
+      display: block;
+      width: 100%;
+      margin-top: 16px;
+      background: var(--correct);
+      color: #fff;
+    }
+
+    .example {
+      display: flex;
+      gap: 4px;
+      justify-content: center;
+      margin: 10px 0;
+    }
+
+    .example .tile {
+      width: 36px;
+      height: 36px;
+      font-size: 1.1rem;
+    }
+
+    @media (max-width: 380px) {
+      .tile, .row input.tile-input {
+        width: 46px;
+        height: 46px;
+        font-size: 1.4rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div style="width:40px"></div>
+    <h1>Word Ladder</h1>
+    <div class="puzzle-num" id="puzzle-label">#—</div>
+  </header>
+
+  <main>
+    <p class="instructions">
+      Change <strong>one letter</strong> at a time.<br>
+      Every word must be real. Reach the end word.
+    </p>
+
+    <div class="board" id="board"></div>
+
+    <div class="status" id="status"></div>
+
+    <div class="controls">
+      <button class="primary" id="check-btn">Check</button>
+      <button id="reveal-btn">Reveal</button>
+      <button id="how-btn">How to play</button>
+    </div>
+  </main>
+
+  <footer>
+    Daily puzzle · Inspired by classic word ladders<br>
+    <span id="footer-date"></span>
+  </footer>
+
+  <!-- How to play modal -->
+  <div class="modal-overlay" id="how-modal">
+    <div class="modal">
+      <h2>How to play</h2>
+      <p>You are given a starting word and an ending word. Fill in the blanks so that each word differs from the one above it by <strong>exactly one letter</strong>.</p>
+      <p>All intermediate words must be valid English five-letter words.</p>
+      <div class="example">
+        <div class="tile locked">C</div><div class="tile locked">O</div><div class="tile locked">L</div><div class="tile locked">D</div>
+      </div>
+      <div class="example">
+        <div class="tile">C</div><div class="tile">O</div><div class="tile">R</div><div class="tile">D</div>
+      </div>
+      <div class="example">
+        <div class="tile">C</div><div class="tile">A</div><div class="tile">R</div><div class="tile">D</div>
+      </div>
+      <div class="example">
+        <div class="tile locked">W</div><div class="tile locked">A</div><div class="tile locked">R</div><div class="tile locked">M</div>
+      </div>
+      <p style="text-align:center;font-size:0.85rem;color:#666">COLD → CORD → CARD → WARM</p>
+      <p>There is only one solution of this length for today’s puzzle. Good luck!</p>
+      <button class="close-btn" id="close-how">Got it</button>
+    </div>
+  </div>
+
+  <!-- Success modal -->
+  <div class="modal-overlay" id="success-modal">
+    <div class="modal">
+      <h2>Nice work!</h2>
+      <p id="success-msg">You solved today’s ladder.</p>
+      <p style="text-align:center;font-size:0.9rem;color:#666" id="success-path"></p>
+      <button class="close-btn" id="close-success">Continue</button>
+    </div>
+  </div>
+
+  <script src="data.js"></script>
+  <script>
+    // Fallback if data.js fails to load for some reason
+    if (typeof PUZZLES === "undefined") {
+      console.error("Puzzle data missing");
+    }
+
+    const boardEl = document.getElementById("board");
+    const statusEl = document.getElementById("status");
+    const checkBtn = document.getElementById("check-btn");
+    const revealBtn = document.getElementById("reveal-btn");
+    const howBtn = document.getElementById("how-btn");
+    const puzzleLabel = document.getElementById("puzzle-label");
+    const footerDate = document.getElementById("footer-date");
+
+    let currentPuzzle = null; // full path array
+    let intermediates = 0;    // number of middle words to fill
+    let solved = false;
+
+    // Daily selection (stable, based on UTC date)
+    function getDayIndex() {
+      const start = Date.UTC(2026, 7, 15); // Aug 15 2026
+      const now = new Date();
+      const todayUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+      const days = Math.floor((todayUTC - start) / 86400000);
+      return ((days % PUZZLES.length) + PUZZLES.length) % PUZZLES.length;
+    }
+
+    function loadPuzzle() {
+      const idx = getDayIndex();
+      currentPuzzle = PUZZLES[idx];
+      intermediates = currentPuzzle.length - 2;
+      puzzleLabel.textContent = `#${idx + 1}`;
+      const d = new Date();
+      footerDate.textContent = d.toLocaleDateString(undefined, {
+        weekday: "long", year: "numeric", month: "long", day: "numeric"
+      });
+      buildBoard();
+      solved = false;
+      statusEl.textContent = "";
+      statusEl.className = "status";
+      checkBtn.disabled = false;
+      revealBtn.disabled = false;
+    }
+
+    function buildBoard() {
+      boardEl.innerHTML = "";
+      const start = currentPuzzle[0];
+      const end = currentPuzzle[currentPuzzle.length - 1];
+
+      // Start row (locked)
+      boardEl.appendChild(makeLockedRow(start));
+
+      // Intermediate input rows
+      for (let r = 0; r < intermediates; r++) {
+        const row = document.createElement("div");
+        row.className = "row";
+        row.dataset.row = r;
+        for (let c = 0; c < 5; c++) {
+          const input = document.createElement("input");
+          input.type = "text";
+          input.maxLength = 1;
+          input.className = "tile-input";
+          input.autocomplete = "off";
+          input.autocapitalize = "characters";
+          input.spellcheck = false;
+          input.dataset.row = r;
+          input.dataset.col = c;
+          input.addEventListener("input", onInput);
+          input.addEventListener("keydown", onKeyDown);
+          input.addEventListener("focus", (e) => e.target.select());
+          row.appendChild(input);
+        }
+        boardEl.appendChild(row);
+      }
+
+      // End row (locked)
+      boardEl.appendChild(makeLockedRow(end));
+    }
+
+    function makeLockedRow(word) {
+      const row = document.createElement("div");
+      row.className = "row";
+      for (const ch of word) {
+        const tile = document.createElement("div");
+        tile.className = "tile locked";
+        tile.textContent = ch.toUpperCase();
+        row.appendChild(tile);
+      }
+      return row;
+    }
+
+    function onInput(e) {
+      const input = e.target;
+      let val = input.value.toUpperCase().replace(/[^A-Z]/g, "");
+      input.value = val.slice(0, 1);
+      if (val) {
+        input.classList.add("filled");
+        // move to next
+        const col = +input.dataset.col;
+        const row = +input.dataset.row;
+        if (col < 4) {
+          const next = boardEl.querySelector(`input[data-row="${row}"][data-col="${col + 1}"]`);
+          if (next) next.focus();
+        } else if (row < intermediates - 1) {
+          const next = boardEl.querySelector(`input[data-row="${row + 1}"][data-col="0"]`);
+          if (next) next.focus();
+        }
+      } else {
+        input.classList.remove("filled");
+      }
+    }
+
+    function onKeyDown(e) {
+      const input = e.target;
+      const col = +input.dataset.col;
+      const row = +input.dataset.row;
+
+      if (e.key === "Backspace" && !input.value && col > 0) {
+        const prev = boardEl.querySelector(`input[data-row="${row}"][data-col="${col - 1}"]`);
+        if (prev) {
+          prev.focus();
+          prev.value = "";
+          prev.classList.remove("filled");
+        }
+      } else if (e.key === "ArrowLeft" && col > 0) {
+        boardEl.querySelector(`input[data-row="${row}"][data-col="${col - 1}"]`)?.focus();
+      } else if (e.key === "ArrowRight" && col < 4) {
+        boardEl.querySelector(`input[data-row="${row}"][data-col="${col + 1}"]`)?.focus();
+      } else if (e.key === "ArrowUp" && row > 0) {
+        boardEl.querySelector(`input[data-row="${row - 1}"][data-col="${col}"]`)?.focus();
+      } else if (e.key === "ArrowDown" && row < intermediates - 1) {
+        boardEl.querySelector(`input[data-row="${row + 1}"][data-col="${col}"]`)?.focus();
+      } else if (e.key === "Enter") {
+        checkSolution();
+      }
+    }
+
+    function getUserWords() {
+      const words = [currentPuzzle[0]];
+      for (let r = 0; r < intermediates; r++) {
+        let w = "";
+        for (let c = 0; c < 5; c++) {
+          const inp = boardEl.querySelector(`input[data-row="${r}"][data-col="${c}"]`);
+          w += (inp.value || " ").toLowerCase();
+        }
+        words.push(w);
+      }
+      words.push(currentPuzzle[currentPuzzle.length - 1]);
+      return words;
+    }
+
+    function differsByOne(a, b) {
+      if (a.length !== 5 || b.length !== 5) return false;
+      let diff = 0;
+      for (let i = 0; i < 5; i++) if (a[i] !== b[i]) diff++;
+      return diff === 1;
+    }
+
+    function checkSolution() {
+      if (solved) return;
+      const words = getUserWords();
+      let allValid = true;
+      let firstError = -1;
+
+      // Clear previous states
+      document.querySelectorAll(".row").forEach(r => {
+        r.classList.remove("row-correct", "row-error");
+      });
+
+      for (let i = 1; i < words.length - 1; i++) {
+        const w = words[i];
+        const prev = words[i - 1];
+        const rowEl = boardEl.querySelector(`.row[data-row="${i - 1}"]`);
+
+        if (w.includes(" ") || w.length !== 5) {
+          allValid = false;
+          if (firstError < 0) firstError = i;
+          rowEl?.classList.add("row-error");
+          continue;
+        }
+        if (!WORDS.has(w)) {
+          allValid = false;
+          if (firstError < 0) firstError = i;
+          rowEl?.classList.add("row-error");
+          statusEl.textContent = `"${w.toUpperCase()}" is not in the word list`;
+          statusEl.className = "status error";
+          return;
+        }
+        if (!differsByOne(prev, w)) {
+          allValid = false;
+          if (firstError < 0) firstError = i;
+          rowEl?.classList.add("row-error");
+          statusEl.textContent = `Row ${i} must differ by exactly one letter from the word above`;
+          statusEl.className = "status error";
+          return;
+        }
+        // also check against next later
+        rowEl?.classList.add("row-correct");
+      }
+
+      // Final connection to end
+      const lastMid = words[words.length - 2];
+      const end = words[words.length - 1];
+      if (!differsByOne(lastMid, end)) {
+        allValid = false;
+        const lastRow = boardEl.querySelector(`.row[data-row="${intermediates - 1}"]`);
+        lastRow?.classList.add("row-error");
+        lastRow?.classList.remove("row-correct");
+        statusEl.textContent = `Last word must differ by exactly one letter from the end word`;
+        statusEl.className = "status error";
+        return;
+      }
+
+      if (allValid) {
+        // Full success
+        solved = true;
+        statusEl.textContent = "Solved!";
+        statusEl.className = "status success";
+        checkBtn.disabled = true;
+        // mark all intermediate rows correct
+        document.querySelectorAll(".row[data-row]").forEach(r => r.classList.add("row-correct"));
+        document.getElementById("success-msg").textContent = `You climbed the ladder in ${intermediates + 1} steps.`;
+        document.getElementById("success-path").textContent = words.map(w => w.toUpperCase()).join(" → ");
+        document.getElementById("success-modal").classList.add("open");
+      } else {
+        statusEl.textContent = "Not quite — keep trying";
+        statusEl.className = "status error";
+      }
+    }
+
+    function revealSolution() {
+      if (solved) return;
+      if (!confirm("Reveal the solution for today?")) return;
+      const path = currentPuzzle;
+      for (let r = 0; r < intermediates; r++) {
+        const word = path[r + 1];
+        for (let c = 0; c < 5; c++) {
+          const inp = boardEl.querySelector(`input[data-row="${r}"][data-col="${c}"]`);
+          inp.value = word[c].toUpperCase();
+          inp.classList.add("filled");
+          inp.disabled = true;
+        }
+        boardEl.querySelector(`.row[data-row="${r}"]`).classList.add("row-correct");
+      }
+      solved = true;
+      statusEl.textContent = "Solution revealed";
+      statusEl.className = "status info";
+      checkBtn.disabled = true;
+      revealBtn.disabled = true;
+    }
+
+    // Event listeners
+    checkBtn.addEventListener("click", checkSolution);
+    revealBtn.addEventListener("click", revealSolution);
+    howBtn.addEventListener("click", () => document.getElementById("how-modal").classList.add("open"));
+    document.getElementById("close-how").addEventListener("click", () => document.getElementById("how-modal").classList.remove("open"));
+    document.getElementById("close-success").addEventListener("click", () => document.getElementById("success-modal").classList.remove("open"));
+
+    // Close modals on overlay click
+    document.querySelectorAll(".modal-overlay").forEach(ov => {
+      ov.addEventListener("click", (e) => {
+        if (e.target === ov) ov.classList.remove("open");
+      });
+    });
+
+    // Init
+    loadPuzzle();
+  </script>
+</body>
+</html>
