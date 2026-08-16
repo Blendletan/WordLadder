@@ -13,7 +13,19 @@ A clean, Wordle-inspired daily **word ladder** game.
 
 Open `index.html` in a browser, or host the folder on GitHub Pages.
 
-After solving you get a **Share** button that copies a Wordle-style result (green squares + puzzle number) to your clipboard — perfect for posting on X, Discord, etc.
+A timer starts as soon as the page loads. It stops when you correctly solve the ladder or when you hit Reveal.
+
+After finishing you get a **Share** button that copies a result like this to your clipboard:
+
+```
+Word Ladder #15
+🟩🟩🟩🟩🟩
+...
+Solved in 1:47
+https://...
+```
+
+(or “Revealed after X:XX” if you gave up) — perfect for posting on X, Discord, etc.
 
 ## Technical notes
 

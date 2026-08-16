@@ -332,6 +332,8 @@
 
     <div class="board" id="board"></div>
 
+    <div id="timer" style="font-size:1.1rem; font-weight:600; font-variant-numeric:tabular-nums; color:var(--muted); min-height:1.4em;">0:00</div>
+
     <div class="status" id="status"></div>
 
     <div class="controls">
@@ -391,6 +393,7 @@
 
     const boardEl = document.getElementById("board");
     const statusEl = document.getElementById("status");
+    const timerEl = document.getElementById("timer");
     const checkBtn = document.getElementById("check-btn");
     const revealBtn = document.getElementById("reveal-btn");
     const howBtn = document.getElementById("how-btn");
@@ -400,6 +403,10 @@
     let currentPuzzle = null; // full path array
     let intermediates = 0;    // number of middle words to fill
     let solved = false;
+    let revealed = false;
+    let startTime = null;
+    let endTime = null;
+    let timerInterval = null;
 
     // Daily selection (stable, based on UTC date)
     function getDayIndex() {
@@ -421,10 +428,45 @@
       });
       buildBoard();
       solved = false;
+      revealed = false;
       statusEl.textContent = "";
       statusEl.className = "status";
       checkBtn.disabled = false;
       revealBtn.disabled = false;
+      document.getElementById("share-btn").style.display = "none";
+
+      // Start the timer
+      if (timerInterval) clearInterval(timerInterval);
+      startTime = Date.now();
+      endTime = null;
+      timerEl.textContent = "0:00";
+      timerEl.style.color = "var(--muted)";
+      timerInterval = setInterval(updateTimerDisplay, 250);
+    }
+
+    function formatTime(ms) {
+      const totalSeconds = Math.floor(ms / 1000);
+      const m = Math.floor(totalSeconds / 60);
+      const s = totalSeconds % 60;
+      return m + ":" + String(s).padStart(2, "0");
+    }
+
+    function updateTimerDisplay() {
+      if (!startTime || endTime) return;
+      timerEl.textContent = formatTime(Date.now() - startTime);
+    }
+
+    function stopTimer() {
+      if (endTime) return; // already stopped
+      endTime = Date.now();
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+      const elapsed = endTime - startTime;
+      timerEl.textContent = formatTime(elapsed);
+      timerEl.style.color = "var(--text)";
+      return elapsed;
     }
 
     function buildBoard() {
@@ -598,6 +640,7 @@
 
       if (allValid) {
         // Full success
+        const elapsed = stopTimer();
         solved = true;
         statusEl.textContent = "Solved!";
         statusEl.className = "status success";
@@ -606,7 +649,7 @@
         document.getElementById("share-btn").style.display = "inline-block";
         // mark all intermediate rows correct
         document.querySelectorAll(".row[data-row]").forEach(r => r.classList.add("row-correct"));
-        document.getElementById("success-msg").textContent = `You climbed the ladder in ${intermediates + 1} steps.`;
+        document.getElementById("success-msg").textContent = `You climbed the ladder in ${formatTime(elapsed)}.`;
         document.getElementById("success-path").textContent = words.map(w => w.toUpperCase()).join(" → ");
         document.getElementById("success-modal").classList.add("open");
       } else {
@@ -616,8 +659,9 @@
     }
 
     function revealSolution() {
-      if (solved) return;
+      if (solved || revealed) return;
       if (!confirm("Reveal the solution for today?")) return;
+      const elapsed = stopTimer();
       const path = currentPuzzle;
       for (let r = 0; r < intermediates; r++) {
         const word = path[r + 1];
@@ -629,25 +673,32 @@
         }
         boardEl.querySelector(`.row[data-row="${r}"]`).classList.add("row-correct");
       }
-      solved = true;
+      revealed = true;
+      solved = true; // treat as finished
       statusEl.textContent = "Solution revealed";
       statusEl.className = "status info";
       checkBtn.disabled = true;
       revealBtn.disabled = true;
-      // Still allow sharing after reveal (but mark it as revealed if you want)
       document.getElementById("share-btn").style.display = "inline-block";
     }
 
     function getShareText() {
       const idx = getDayIndex() + 1;
-      const steps = currentPuzzle.length - 1;
+      const elapsed = endTime && startTime ? (endTime - startTime) : 0;
+      const timeStr = formatTime(elapsed);
       // One green row per word in the ladder (Wordle-style visual)
       const greens = Array(currentPuzzle.length).fill("🟩🟩🟩🟩🟩").join("\n");
-      // Use the current page URL if we're on GitHub Pages, otherwise a placeholder
-      const url = (location.hostname.includes("github.io") || location.hostname !== "localhost")
-        ? location.origin + location.pathname.replace(/\/$/, "")
-        : "https://YOUR-USERNAME.github.io/word-ladder";
-      return `Word Ladder #${idx}\n${greens}\n\nSolved in ${steps} steps\n${url}`;
+      // Prefer the real hosted URL when available
+      let url = "https://YOUR-USERNAME.github.io/word-ladder";
+      if (location.hostname.includes("github.io")) {
+        url = location.origin + location.pathname.replace(/\/index\.html$/, "").replace(/\/$/, "");
+      }
+      
+      const resultLine = revealed 
+        ? `Revealed after ${timeStr}` 
+        : `Solved in ${timeStr}`;
+      
+      return `Word Ladder #${idx}\n${greens}\n\n${resultLine}\n${url}`;
     }
 
     async function shareResult() {
